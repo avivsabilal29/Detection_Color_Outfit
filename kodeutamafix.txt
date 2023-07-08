@@ -1,0 +1,271 @@
+from flask import Flask, Response, render_template
+import cv2
+import numpy as np
+
+
+app = Flask(__name__)
+
+# URL video streaming
+url = 'http://192.168.1.12:8080/video'
+
+# Buat objek VideoCapture menggunakan URL
+cap = cv2.VideoCapture(url)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1080)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+# Daftar warna yang akan dideteksi
+colors = {
+    "Putih": {"lower": np.array([0, 0, 150]), "upper": np.array([180, 20, 255])},
+    "Hitam": {"lower": np.array([0, 0, 0]), "upper": np.array([180, 255, 50])},
+    "Merah": {"lower": np.array([0, 100, 100]), "upper": np.array([10, 255, 255])},
+    "Kuning": {"lower": np.array([25, 100, 100]), "upper": np.array([35, 255, 255])},
+    "Hijau": {"lower": np.array([35, 100, 100]), "upper": np.array([85, 255, 255])},
+    "Biru": {"lower": np.array([85, 100, 100]), "upper": np.array([125, 255, 255])},
+    "Orange": {"lower": np.array([10, 100, 100]), "upper": np.array([25, 255, 255])},
+    "Coklat": {"lower": np.array([10, 50, 50]), "upper": np.array([20, 255, 255])},
+    "Pink tua": {"lower": np.array([145, 100, 100]), "upper": np.array([155, 255, 255])},
+    "Pink muda": {"lower": np.array([155, 100, 100]), "upper": np.array([165, 255, 255])},
+    "Pink": {"lower": np.array([165, 100, 100]), "upper": np.array([175, 255, 255])},
+    "Merah maroon": {"lower": np.array([175, 100, 100]), "upper": np.array([180, 255, 255])},
+    "Abu-abu": {"lower": np.array([0, 0, 100]), "upper": np.array([180, 20, 200])},
+    "Abu-abu tua": {"lower": np.array([0, 0, 50]), "upper": np.array([180, 20, 100])},
+    "Abu-abu muda": {"lower": np.array([0, 0, 150]), "upper": np.array([180, 20, 200])},
+    "Merah tua": {"lower": np.array([0, 100, 100]), "upper": np.array([10, 255, 255])},
+    "Kuning tua": {"lower": np.array([25, 100, 100]), "upper": np.array([35, 255, 255])},
+    "Hijau tua": {"lower": np.array([35, 100, 100]), "upper": np.array([85, 255, 255])},
+    "Ungu tua": {"lower": np.array([125, 100, 100]), "upper": np.array([145, 255, 255])},
+    "Denim": {"lower": np.array([85, 100, 100]), "upper": np.array([125, 255, 255])},
+    "Cokelat Tua": {"lower": np.array([10, 50, 50]), "upper": np.array([20, 255, 255])},
+    "Cokelat Muda": {"lower": np.array([20, 50, 50]), "upper": np.array([30, 255, 255])},
+    "Biru Tua": {"lower": np.array([105, 100, 100]), "upper": np.array([125, 255, 255])},
+    "Biru muda": {"lower": np.array([125, 100, 100]), "upper": np.array([135, 255, 255])},
+    "Biru Dongker": {"lower": np.array([135, 100, 100]), "upper": np.array([145, 255, 255])},
+    "Krem": {"lower": np.array([0, 20, 150]), "upper": np.array([180, 100, 255])},
+    "Emas": {"lower": np.array([20, 100, 100]), "upper": np.array([35, 255, 255])},
+    "Hijau Sage": {"lower": np.array([45, 100, 100]), "upper": np.array([75, 255, 255])},
+    "Hijau Army": {"lower": np.array([75, 100, 100]), "upper": np.array([95, 255, 255])}
+}
+
+def generate_frames():
+    while True:
+        _, frame = cap.read()
+        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        height, width, _ = frame.shape
+
+        cx = int(width / 2)
+        cy = int(height / 2)
+
+        # Pick pixel value
+        pixel_center = hsv_frame[cy, cx]
+        h, s, v = int(pixel_center[0]), int(pixel_center[1]), int(pixel_center[2])
+
+        color = "Tidak Terdeteksi"
+        for color_name, color_range in colors.items():
+            lower_range = color_range["lower"]
+            upper_range = color_range["upper"]
+            if lower_range[0] <= h <= upper_range[0] and lower_range[1] <= s <= upper_range[1] and lower_range[2] <= v <= upper_range[2]:
+                color = color_name
+                break
+
+        pixel_center_bgr = frame[cy, cx]
+        b, g, r = int(pixel_center_bgr[0]), int(pixel_center_bgr[1]), int(pixel_center_bgr[2])
+
+        cv2.rectangle(frame, (cx - 440, 20), (cx + 270, 125), (255, 255, 255), -1)
+        cv2.putText(frame, color, (cx - 290, 100), 0, 3, (b, g, r), 5)
+        cv2.circle(frame, (cx, cy), 5, (25, 25, 25), 3)
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', debug=True)
+
+
+
+
+
+
+
+
+KODE FIX DAN SUARA
+from flask import Flask, Response, render_template
+import cv2
+import numpy as np
+import threading
+import pyttsx3
+
+
+app = Flask(__name__)
+
+# URL video streaming
+url = 'http://192.168.1.12:8080/video'
+
+# Buat objek VideoCapture menggunakan URL
+cap = cv2.VideoCapture(url)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1080)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
+
+# Daftar warna yang akan dideteksi
+colors = {
+    "Putih": {"lower": np.array([0, 0, 150]), "upper": np.array([180, 20, 255])},
+    "Hitam": {"lower": np.array([0, 0, 0]), "upper": np.array([180, 255, 50])},
+    "Merah": {"lower": np.array([0, 100, 100]), "upper": np.array([10, 255, 255])},
+    "Kuning": {"lower": np.array([25, 100, 100]), "upper": np.array([35, 255, 255])},
+    "Hijau": {"lower": np.array([35, 100, 100]), "upper": np.array([85, 255, 255])},
+    "Biru": {"lower": np.array([85, 100, 100]), "upper": np.array([125, 255, 255])},
+    "Orange": {"lower": np.array([10, 100, 100]), "upper": np.array([25, 255, 255])},
+    "Coklat": {"lower": np.array([10, 50, 50]), "upper": np.array([20, 255, 255])},
+    "Pink tua": {"lower": np.array([145, 100, 100]), "upper": np.array([155, 255, 255])},
+    "Pink muda": {"lower": np.array([155, 100, 100]), "upper": np.array([165, 255, 255])},
+    "Pink": {"lower": np.array([165, 100, 100]), "upper": np.array([175, 255, 255])},
+    "Merah maroon": {"lower": np.array([175, 100, 100]), "upper": np.array([180, 255, 255])},
+    "Abu-abu": {"lower": np.array([0, 0, 100]), "upper": np.array([180, 20, 200])},
+    "Abu-abu tua": {"lower": np.array([0, 0, 50]), "upper": np.array([180, 20, 100])},
+    "Abu-abu muda": {"lower": np.array([0, 0, 150]), "upper": np.array([180, 20, 200])},
+    "Merah tua": {"lower": np.array([0, 100, 100]), "upper": np.array([10, 255, 255])},
+    "Kuning tua": {"lower": np.array([25, 100, 100]), "upper": np.array([35, 255, 255])},
+    "Hijau tua": {"lower": np.array([35, 100, 100]), "upper": np.array([85, 255, 255])},
+    "Ungu tua": {"lower": np.array([125, 100, 100]), "upper": np.array([145, 255, 255])},
+    "Denim": {"lower": np.array([85, 100, 100]), "upper": np.array([125, 255, 255])},
+    "Cokelat Tua": {"lower": np.array([10, 50, 50]), "upper": np.array([20, 255, 255])},
+    "Cokelat Muda": {"lower": np.array([20, 50, 50]), "upper": np.array([30, 255, 255])},
+    "Biru Tua": {"lower": np.array([105, 100, 100]), "upper": np.array([125, 255, 255])},
+    "Biru muda": {"lower": np.array([125, 100, 100]), "upper": np.array([135, 255, 255])},
+    "Biru Dongker": {"lower": np.array([135, 100, 100]), "upper": np.array([145, 255, 255])},
+    "Krem": {"lower": np.array([0, 20, 150]), "upper": np.array([180, 100, 255])},
+    "Emas": {"lower": np.array([20, 100, 100]), "upper": np.array([35, 255, 255])},
+    "Hijau Sage": {"lower": np.array([45, 100, 100]), "upper": np.array([75, 255, 255])},
+    "Hijau Army": {"lower": np.array([75, 100, 100]), "upper": np.array([95, 255, 255])}
+}
+
+
+# Variabel global untuk menyimpan hasil pembacaan warna
+detected_color = ""
+
+# Objek lock untuk sinkronisasi akses ke variabel detected_color
+color_lock = threading.Lock()
+
+def generate_frames():
+    global detected_color
+    while True:
+        _, frame = cap.read()
+        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        height, width, _ = frame.shape
+
+        cx = int(width / 2)
+        cy = int(height / 2)
+
+        # Pick pixel value
+        pixel_center = hsv_frame[cy, cx]
+        h, s, v = int(pixel_center[0]), int(pixel_center[1]), int(pixel_center[2])
+
+        color = "Tidak Terdeteksi"
+        for color_name, color_range in colors.items():
+            lower_range = color_range["lower"]
+            upper_range = color_range["upper"]
+            if lower_range[0] <= h <= upper_range[0] and lower_range[1] <= s <= upper_range[1] and lower_range[2] <= v <= upper_range[2]:
+                color = color_name
+                break
+
+        pixel_center_bgr = frame[cy, cx]
+        b, g, r = int(pixel_center_bgr[0]), int(pixel_center_bgr[1]), int(pixel_center_bgr[2])
+
+        cv2.rectangle(frame, (cx - 440, 20), (cx + 270, 125), (255, 255, 255), -1)
+        cv2.putText(frame, color, (cx - 290, 100), cv2.FONT_HERSHEY_SIMPLEX, 3, (b, g, r), 5)
+        cv2.circle(frame, (cx, cy), 5, (25, 25, 25), 3)
+        with color_lock:
+            detected_color = color
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
+def play_sound():
+    global detected_color
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 150)  # Kecepatan bicara, misalnya 150 kata per menit
+    engine.setProperty('volume', 1.0)
+    engine.setProperty('voice', 'id')
+    while True:
+        with color_lock:
+            color2 = detected_color
+
+        # Menentukan teks yang akan diucapkan berdasarkan warna yang terdeteksi
+        text = ""
+        if color2 == "Hitam":
+            text = "Anda menggunakan warna hitam, anda dapat memilih warna yang cocok saat menggunakan warna hitam, yaitu putih, merah, kuning, biru, ungu, oranye, krem, coklat, pink tua, pink muda, pink, merah maroon, abu-abu, abu-abu tua, abu-abu muda, meah tua, kuning tua, hijau tua, ungu tua, coklat tua, coklat muda, biru tua, biru langit, dongker, hijau sage, hijau army dan denim. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Putih":
+            text = "Anda menggunakan warna putih, anda dapat memilih warna yang cocok saat menggunakan warna putih, yaitu merah, kuning, biru , ungu, oranye, krem, coklat, pink tua, pink muda, pink , merah maroon, abu-abu, abu-abu tua, abu-abu muda, merah tua, kunig tua, hijau tua, ungu tua, coklat tua, coklat tua, coklat muda, biru tua, biru langit, dongker, hijau sage, hijau army, emas, denim, . silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Merah":
+            text = "Anda menggunakan warna merah, anda dapat memilih warna yang cocok saat menggunakan warna merah, yaitu abu-abu muda, kream, denim, abu-abu. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Kuning":
+            text = "Anda menggunakan warna Kuning, anda dapat memilih warna yang cocok saat menggunakan warna Kuning, yaitu coklat muda, coklat tua, denim kream abu-abu, abu-abu muda. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Hijau":
+            text = "Anda menggunakan warna Hijau, anda dapat memilih warna yang cocok saat menggunakan warna Hijau, yaitu hijau sage, hijau army, kream, coklat, coklat muda, abu-abu muda. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Biru":
+            text = "Anda menggunakan warna Biru, anda dapat memilih warna yang cocok saat menggunakan warna Biru, yaitu abu-abu muda, coklat muda, kream, biru muda, denim. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Coklat":
+            text = "Anda menggunakan warna Coklat, anda dapat memilih warna yang cocok saat menggunakan warna Coklat, yaitu coklat muda, kream. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Pink tua":
+            text = "Anda menggunakan warna Pink tua, anda dapat memilih warna yang cocok saat menggunakan warna Pink tua, yaitu krem. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Pink":
+            text = "Anda menggunakan warna Pink, anda dapat memilih warna yang cocok saat menggunakan warna Pink, yaitu denim, kream. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Pink muda":
+            text = "Anda menggunakan warna Pink muda, anda dapat memilih warna yang cocok saat menggunakan warna Pink muda, yaitu kream atau denim. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Merah maroon":
+            text = "Anda menggunakan warna Merah maroon, anda dapat memilih warna yang cocok saat menggunakan warna Merah maroon, yaitu abu-abu muda, abu-abu tua, kream, coklat muda. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Abu-abu tua" or color2 == "Abu-abu muda":
+            text = "Anda menggunakan warna Abu-abu tua, anda dapat memilih warna yang cocok saat menggunakan warna Abu-abu tua atau abu-abu muda, yaitu kream. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Merah tua" or color2 == "Kuning tua":
+            text = "Anda menggunakan warna Abu-abu tua, anda dapat memilih warna yang cocok saat menggunakan warna merah tua atau kuning tua, yaitu kream. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        elif color2 == "Krem":
+            text = "Anda menggunakan warna Krem, anda dapat memilih warna yang cocok saat menggunakan warna Krem, yaitu hijau tua, ungu tua, coklat tua, coklat muda, biru tua, biru langit, biru dongker, hijau sage dan hijau army. silahkan memilih warna-warna rekomendasi yang telah disebutkan "
+        else:
+            text = color2
+        # Daftar teks untuk warna lainnya
+
+        # Memainkan suara menggunakan pyttsx3
+        engine.say(text)
+        engine.runAndWait()
+
+# Membuat thread pertama untuk pembacaan warna
+color_thread = threading.Thread(target=generate_frames)
+
+# Membuat thread kedua untuk pemutaran suara
+sound_thread = threading.Thread(target=play_sound)
+
+# Menjalankan thread pertama dan kedua secara bersamaan
+color_thread.start()
+sound_thread.start()
+
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', debug=True)
+    # Menunggu hingga kedua thread selesai
+    color_thread.join()
+    sound_thread.join()
+    cap.release()
+    cv2.destroyAllWindows()
+
+

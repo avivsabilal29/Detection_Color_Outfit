@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Stream Client</title>
+</head>
+<body>
+    <video id="videoStream" autoplay></video>
+
+    <script>
+        // Membuat WebSocket
+        const socket = new WebSocket('ws://192.168.1.20:9999');
+
+        // Mendapatkan referensi elemen video
+        const video = document.getElementById('videoStream');
+
+        // Menghandle pesan yang diterima dari server
+        socket.onmessage = function(event) {
+            const message = event.data;
+            if (typeof message === 'string') {
+                // Jika pesan berisi teks, tampilkan di konsol browser
+                console.log(message);
+            } else {
+                // Jika pesan berisi data video, tampilkan dalam elemen video
+                const arrayBuffer = message.buffer;
+                const blob = new Blob([arrayBuffer]);
+                const videoUrl = URL.createObjectURL(blob);
+                video.src = videoUrl;
+            }
+        };
+    </script>
+</body>
+</html>
